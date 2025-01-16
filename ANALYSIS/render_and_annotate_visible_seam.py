@@ -4,6 +4,16 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
 
+import platform
+if platform.system() == 'Linux':
+    os.environ["PYOPENGL_PLATFORM"] = "egl"
+os.environ["PYOPENGL_PLATFORM"] = "egl"
+os.environ["LIBGL_ALWAYS_SOFTWARE"] = "1"
+os.environ["PYOPENGL_DEBUG"] = "1"
+# os.environ['MESA_GL_VERSION_OVERRIDE'] = '4.1'  # Add this line
+# os.environ['MESA_GLSL_VERSION_OVERRIDE'] = '410'  # Add this line
+
+
 import sys
 from glob import glob
 import numpy as np
@@ -19,14 +29,6 @@ from PIL import Image
 from tqdm import tqdm
 from PIL import Image
 import PIL
-
-import platform
-if platform.system() == 'Linux':
-    os.environ["PYOPENGL_PLATFORM"] = "egl"
-os.environ["PYOPENGL_PLATFORM"] = "egl"
-os.environ['MESA_GL_VERSION_OVERRIDE'] = '4.1'  # Add this line
-os.environ['MESA_GLSL_VERSION_OVERRIDE'] = '410'  # Add this line
-
 
     
     
@@ -156,8 +158,16 @@ render_props = {
     }
 }
 
+import socket
+host_name = socket.gethostname()
 
-DATASET_ROOT_PATH = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
+if host_name == "SERVER":
+    DATASET_ROOT_PATH = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
+elif host_name == "epyc64":
+    DATASET_ROOT_PATH = "/data/HJP/VTO2025/DATASET/690432"
+else:
+    DATASET_ROOT_PATH = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
+
 GARMENT_ROOT_PATH = os.path.join(DATASET_ROOT_PATH, "GarmentCodeData_v2")
 BODY_ROOT_PATH = os.path.join(DATASET_ROOT_PATH, "body_mesh")
 MEAN_ALL_BODY_PATH = os.path.join(DATASET_ROOT_PATH, "neutral_body/mean_all.obj")
@@ -168,21 +178,29 @@ default_body_mesh = trimesh.load(MEAN_ALL_BODY_PATH)
 BODY_TYPE = "default_body"
 
 
-NUM = 24
-STT = NUM
-END = NUM + 6
-JOIN_PATH_LIST = [
-    f"garments_5000_{i}" for i in range(STT, END)
-]
+# NUM = 24
+# STT = NUM
+# END = NUM + 6
+# JOIN_PATH_LIST = [
+#     f"garments_5000_{i}" for i in range(STT, END)
+# ]
 
-garment_path_list = []
-for join_path in JOIN_PATH_LIST:
-    garment_path_list.extend(
-        sorted(list(filter(
-            os.path.isdir,
-            glob(os.path.join(GARMENT_ROOT_PATH, join_path, BODY_TYPE, "*"))
-        )))
-    )
+# garment_path_list = []
+# for join_path in JOIN_PATH_LIST:
+#     garment_path_list.extend(
+#         sorted(list(filter(
+#             os.path.isdir,
+#             glob(os.path.join(GARMENT_ROOT_PATH, join_path, BODY_TYPE, "*"))
+#         )))
+#     )
+    
+LITTLE_DIR_PATH = f"garments_5000_{sys.argv[1]}"
+
+garment_path_list = sorted(list(filter(
+    os.path.isdir,
+    glob(os.path.join(GARMENT_ROOT_PATH, LITTLE_DIR_PATH, BODY_TYPE, "*"))
+)))
+
     
 # print(os.path.dirname(os.path.dirname(garment_path_list[0])))
 print(garment_path_list[0])
@@ -303,14 +321,8 @@ for garment_path in tqdm(garment_path_list):
                 filtered_vert_idx = idx_convert_map[orig_vert_idx]
                 filtered_stitch_vertex_mask_dict[stitch_idx][filtered_vert_idx] = True
 
-
     fltrd_vis_vert_mask_dict = {}
     fltrd_proj_vert_pos_dict = {}
-
-
-
-
-
 
 
     # ready pyrender meshes
