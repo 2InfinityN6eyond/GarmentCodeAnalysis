@@ -13,9 +13,14 @@ class PathCofig:
                  add_timestamp=False):
         """Specify 
             * in_element_path
-            * our_path -- dataset level output path
-            * body_name -- specify to indicate use of default bodies 
-            * samples_name -- specify to indicate use of body sampling (reading body name from measurments file)
+                *
+            * our_path
+                * dataset level output path
+                * ex) ./Logs/
+            * body_name
+                * specify to indicate use of default bodies 
+            * samples_name
+                * specify to indicate use of body sampling (reading body name from measurments file)
         """
 
         self._system = Properties('./system.json')  # TODOlOW More stable path?
@@ -29,7 +34,7 @@ class PathCofig:
             out_name = in_name
         self.in_tag = in_name
         self.out_folder_tag = f'{out_name}_{datetime.now().strftime("%y%m%d-%H-%M-%S")}' if add_timestamp else out_name
-        self.sim_tag = out_name 
+        self.sim_tag = out_name
         self.boxmesh_tag = out_name
 
         # Base paths

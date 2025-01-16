@@ -242,9 +242,13 @@ def run_sim(
 
     garment.save_frame(save_v_norms=save_v_norms) #saving after stats
 
+    import pdb; pdb.set_trace()
+
     # Render images
     s_time = time.time()
-    render_images(paths, garment.v_body, garment.f_body, render_props['config'])
+    render_images(
+        paths, garment.v_body, garment.f_body,render_props['config']
+    )
     render_image_time = time.time() - s_time
     render_props['stats']['render_time'][cloth_name] = render_image_time  
     print(f"Rendering {cloth_name} took {render_image_time}s")

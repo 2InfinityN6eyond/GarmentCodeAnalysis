@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     args = get_command_args()
 
-    props = data_config.Properties(args.sim_config) 
+    props = data_config.Properties(args.sim_config)
     props.set_section_stats('sim', fails={}, sim_time={}, spf={}, fin_frame={}, body_collisions={}, self_collisions={})
     props.set_section_stats('render', render_time={})
 
@@ -53,7 +53,9 @@ if __name__ == "__main__":
     # Generate and save garment box mesh (if not existent)
     print(f"Generate box mesh of {garment_name} with resolution {props['sim']['config']['resolution_scale']}...")
     print('\nGarment load: ', paths.in_g_spec)
+    # paths.in_g_spec seems to be the path to the pattern specification file   *specification.json
 
+    
     garment_box_mesh = BoxMesh(paths.in_g_spec, props['sim']['config']['resolution_scale'])
     garment_box_mesh.load()
     garment_box_mesh.serialize(

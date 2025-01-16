@@ -667,6 +667,9 @@ class GUIState:
             self.ui_body_3d.visible(True)
             self.ui_body_3d_switch.set_value(True)
             return
+        print("-----------------------------")
+        print(self.pattern_state.svg_filename)
+        print("-----------------------------")
 
         try:
             # Display waiting spinner untill getting the result
@@ -686,6 +689,14 @@ class GUIState:
                 self.ui_garment_3d = self.ui_3d_scene.gltf(
                             f'geo/{self.garm_3d_filename}', 
                         ).scale(0.01).rotate(np.pi / 2, 0., 0.)
+            
+                print("================================")
+                print(self.ui_garment_3d)
+                print(type(self.ui_garment_3d))
+                print("================================")
+                
+                
+                
             
             # Show the result! =)
             self.spin_dialog.close()
