@@ -201,36 +201,35 @@ print(garment_path_list[0])
 print(garment_path_list[-1])
 
 
+MIN_CONSEC_VERT_TO_BE_SEGMENT = 3
+# Connect Disconnected vertices, if length of disconnected vertices <= MIN_CONSEC_VERT_TO_DISCONNECT
+MIN_CONSEC_VERT_TO_DISCONNECT = 2
+
+
 for garment_path in tqdm(garment_path_list):
-
     garment_id = os.path.basename(garment_path)
+    SPEC_FILE_PATH = os.path.join(garment_path, f"{garment_id}_specification.json")
+    pattern = pyg.pattern.wrappers.VisPattern(SPEC_FILE_PATH)
 
-    # SPEC_FILE_PATH = os.path.join(garment_path, f"{garment_id}_specification.json")
+    # Get Garment Blueprint
+    panel_svg_path_dict = {
+        panel_name : pattern._draw_a_panel(
+            panel_name, apply_transform=False, fill=True
+        )
+        for panel_name in pattern.panel_order()
+    }
+    stitch_dict = {
+        i : v for i, v in enumerate(pattern.pattern['stitches'])
+    }
 
-    # pattern = pyg.pattern.wrappers.VisPattern(SPEC_FILE_PATH)
-
-    # panel_svg_path_dict = {
-    #     panel_name : pattern._draw_a_panel(
-    #         panel_name, apply_transform=False, fill=True
-    #     )
-    #     for panel_name in pattern.panel_order()
-    # }
-    # stitch_dict = {
-    #     i : v for i, v in enumerate(pattern.pattern['stitches'])
-    # }
-    
-    tex_image = PIL.Image.open(os.path.join(garment_path, f"{garment_id}_texture.png"))
-    
-    # with open(os.path.join(garment_path, f"{garment_id}_sim_segmentation.txt"), "r") as f:
-    #     segmentation = f.readlines()
-    
-    
+    # Read Mesh
     simulated_garment_mesh = trimesh.load_mesh(
         os.path.join(garment_path, f"{garment_id}_sim.ply"),
         process=False
     )
     simulated_garment_mesh.vertices = simulated_garment_mesh.vertices / 100
 
+    tex_image = PIL.Image.open(os.path.join(garment_path, f"{garment_id}_texture.png"))
     texture = trimesh.visual.TextureVisuals(
         simulated_garment_mesh.visual.uv,
         image=tex_image
@@ -238,6 +237,93 @@ for garment_path in tqdm(garment_path_list):
     simulated_garment_mesh.visual = texture
 
     idx_convert_map = v_id_map(simulated_garment_mesh.vertices)
+    idx_convert_map_arr = np.array(idx_convert_map)
+
+    # Read Vertex Label
+    with open(os.path.join(garment_path, f"{garment_id}_sim_segmentation.txt"), "r") as f:
+        segmentation = list(map(
+            lambda x : x.strip(),
+            f.readlines()
+        ))
+
+    stitch_vertex_mask_dict = {}
+    for k in stitch_dict.keys():
+        raw_mask = list(map(
+            lambda x : True if f"stitch_{k}" in x.split(",") else False,
+            segmentation
+        ))
+        base_mask = np.array(list(map(
+            lambda idx : True if raw_mask[idx] else False,
+            idx_convert_map
+        )))
+        stitch_vertex_mask_dict[k] = base_mask
+
+
+    full_vertices = np.array(simulated_garment_mesh.vertices)
+    full_edges = np.array(simulated_garment_mesh.edges)
+    full_faces = np.array(simulated_garment_mesh.faces)
+
+    # Make filtered Mesh and conversion information
+    filtered2full_idx_map = {}
+    for idx, filtered_idx in enumerate(idx_convert_map):
+        if filtered_idx in filtered2full_idx_map :
+            filtered2full_idx_map[filtered_idx].append(idx)
+        else:
+            filtered2full_idx_map[filtered_idx] = [idx]
+
+            
+    filtered_idx_list = []
+    filtered_vertices = []
+    for full_idx, filtered_idx in enumerate(idx_convert_map):
+        if filtered_idx in filtered_idx_list:
+            continue
+        filtered_idx_list.append(filtered_idx)
+        filtered_vertices.append(full_vertices[full_idx])
+    filtered_vertices = np.array(filtered_vertices)
+
+    filtered_edges = []
+    for orig_edge in full_edges:
+        stt = idx_convert_map[orig_edge[0]]
+        end = idx_convert_map[orig_edge[1]]
+        filtered_edges.append([stt, end])
+    filtered_edges = np.array(filtered_edges)
+
+    filtered_faces = []
+    for idx, orig_face in enumerate(full_faces):
+        v1, v2, v3 = sorted([
+            idx_convert_map[orig_face[0]],
+            idx_convert_map[orig_face[1]],
+            idx_convert_map[orig_face[2]]
+        ])
+        filtered_faces.append([v1, v2, v3])
+    filtered_faces = np.array(filtered_faces)
+
+    filtered_mesh = trimesh.Trimesh(
+        vertices=filtered_vertices,
+        edges=filtered_edges,
+        faces=filtered_faces,
+        process=False
+    )
+
+    filtered_stitch_vertex_mask_dict = {}
+    for stitch_idx in stitch_vertex_mask_dict.keys():
+        filtered_stitch_vertex_mask_dict[stitch_idx] = np.array(
+            [False] * len(filtered_vertices)
+        )
+        for orig_vert_idx, val in enumerate(stitch_vertex_mask_dict[stitch_idx]):
+            if val:
+                filtered_vert_idx = idx_convert_map[orig_vert_idx]
+                filtered_stitch_vertex_mask_dict[stitch_idx][filtered_vert_idx] = True
+
+
+    fltrd_vis_vert_mask_dict = {}
+    fltrd_proj_vert_pos_dict = {}
+
+
+
+
+
+
 
     # ready pyrender meshes
     body_material = pyrender.MetallicRoughnessMaterial(
@@ -246,9 +332,6 @@ for garment_path in tqdm(garment_path_list):
         roughnessFactor=0.5  # Range: [0.0, 1.0]
     )
     pyrender_body_mesh = pyrender.Mesh.from_trimesh(default_body_mesh, material=body_material)
-
-
-
 
 
     material = simulated_garment_mesh.visual.material.to_pbr()
@@ -319,24 +402,223 @@ for garment_path in tqdm(garment_path_list):
         px = np.clip(pixel_coords[:, 0].astype(int), 0, render_props["resolution"][0] - 1)
         py = np.clip(pixel_coords[:, 1].astype(int), 0, render_props["resolution"][1] - 1)
         
+        THRESHOLD = 0.09
         visibility_mask = (z_coords > 0) & \
                     (pixel_coords[:, 0] >= 0) & (pixel_coords[:, 0] < render_props["resolution"][0]) & \
                     (pixel_coords[:, 1] >= 0) & (pixel_coords[:, 1] < render_props["resolution"][1]) & \
-                    (z_coords + 0.08 < depth[py, px]) # | (z_coords - 0.1 > depth[py, px])
+                    (z_coords + THRESHOLD < depth[py, px])
+                    # (depth[py, px] - THRESHOLD < z_coords) & (depth[py, px] + THRESHOLD > z_coords)
         
-        projected_vertex_pose_dict[side] = pixel_coords.tolist()
-        vertex_visibility_mask_dict[side] = visibility_mask.tolist()
+        projected_vertex_pose_dict[side] = pixel_coords
+        vertex_visibility_mask_dict[side] = visibility_mask
         
         renderer.delete()
 
-
-
+    for side, rendered_image in rendered_image_dict.items():
+        rendered_image.save(os.path.join(garment_path, f"rendered_{side}.png"))
     for side, depth_image in depth_image_dict.items():
-        np.save(os.path.join(garment_path, f"{garment_id}_depth_{side}.npy"), depth_image)
+        np.save(os.path.join(garment_path, f"depth_{side}.npy"), depth_image)
+    with open(os.path.join(garment_path, f"{garment_id}_projected_vertex_pose.pkl"), "wb") as f:
+        pickle.dump( projected_vertex_pose_dict, f)
+    with open(os.path.join(garment_path, f"{garment_id}_vertex_visibility_mask.pkl"), "wb") as f:
+        pickle.dump(vertex_visibility_mask_dict, f)
 
 
-    with open(os.path.join(garment_path, f"{garment_id}_projected_vertex_pose.json"), "w") as f:
-        json.dump( projected_vertex_pose_dict, f)
 
-    with open(os.path.join(garment_path, f"{garment_id}_vertex_visibility_mask.json"), "w") as f:
-        json.dump(vertex_visibility_mask_dict, f)
+
+
+
+    for side in vertex_visibility_mask_dict.keys():
+        filtrd_idx_list = []
+        fltrd_vis_mask = []
+        fltrd_proj_vert_pos = []    
+        for orig_idx, fltrd_idx in enumerate(idx_convert_map_arr):
+            if fltrd_idx in filtrd_idx_list:
+                continue
+            filtrd_idx_list.append(fltrd_idx)
+            fltrd_vis_mask.append(vertex_visibility_mask_dict[side][orig_idx])
+            fltrd_proj_vert_pos.append(projected_vertex_pose_dict[side][orig_idx])
+
+        fltrd_vis_vert_mask_dict[side] = fltrd_vis_mask
+        fltrd_proj_vert_pos_dict[side] = fltrd_proj_vert_pos
+
+    vis_sim_segment_pos_dict = {}
+    for side in fltrd_vis_vert_mask_dict.keys():
+        for stch_idx in filtered_stitch_vertex_mask_dict.keys():
+            fltrd_stch_mask = filtered_stitch_vertex_mask_dict[stch_idx]
+            fltrd_vis_mask = fltrd_vis_vert_mask_dict[side]
+            
+            mask = fltrd_stch_mask & fltrd_vis_mask
+        
+    vis_sim_segment_pos_dict = {}
+    for side in fltrd_vis_vert_mask_dict.keys():
+        for stch_idx in filtered_stitch_vertex_mask_dict.keys():
+            fltrd_stch_mask = filtered_stitch_vertex_mask_dict[stch_idx]
+            fltrd_vis_mask = fltrd_vis_vert_mask_dict[side]
+            
+            mask = fltrd_stch_mask & fltrd_vis_mask
+            
+    fltrd_seam_line_dict = {}
+    for fltrd_stch_idx in filtered_stitch_vertex_mask_dict.keys():
+        fltrd_stch_vert_map = filtered_stitch_vertex_mask_dict[fltrd_stch_idx]
+        fltrd_stch_vert_idx_arr = np.where(fltrd_stch_vert_map)[0]
+        
+        adj_dict = {}
+        for v1, v2 in filtered_edges:
+            if v1 in fltrd_stch_vert_idx_arr and v2 in fltrd_stch_vert_idx_arr:
+                if v1 not in adj_dict: adj_dict[v1] = set()
+                if v2 not in adj_dict: adj_dict[v2] = set()
+                adj_dict[v1].add(v2)
+                adj_dict[v2].add(v1)
+        
+        endpoints = [
+            v for v in fltrd_stch_vert_idx_arr if len(adj_dict.get(v, set())) == 1
+        ]
+        if len(endpoints) != 2:
+            
+            print("stitch idx", fltrd_stch_idx)
+            print(fltrd_stch_vert_idx_arr)
+            print(f"Warning: Found {len(endpoints)} endpoints, expected 2. Path may not be linear.")
+            continue
+        
+        seam_vert_idx_list = [endpoints[0]]
+        while len(seam_vert_idx_list) < len(fltrd_stch_vert_idx_arr):
+            current_vert = seam_vert_idx_list[-1]
+            neighbors = adj_dict[current_vert]
+            next_vert = next((v for v in neighbors if v not in seam_vert_idx_list), None)
+            if next_vert is None:
+                break
+            seam_vert_idx_list.append(next_vert)
+        fltrd_seam_line_dict[fltrd_stch_idx] = seam_vert_idx_list
+
+    fltrd_vis_seam_line_dict = {}
+    for side in fltrd_vis_vert_mask_dict.keys() :
+        fltrd_vis_seam_line_dict[side] = {}
+        vis_mask = np.array(fltrd_vis_vert_mask_dict[side]).astype(bool)
+        for stch_idx in fltrd_seam_line_dict.keys():
+            
+            seam_vert_idx_list = np.array(fltrd_seam_line_dict[stch_idx])
+            vis_list = []
+            for seam_vert_idx in seam_vert_idx_list :
+                vis_list.append(vis_mask[seam_vert_idx])
+            vis_list = np.array(vis_list)
+
+            # If length of disconnection between visible seam vertices
+            # is less then MIN_CONSEC_VERT_TO_DISCONNECT,
+            # consider the disconnection is connected
+            # (which change invisible seam vertices to visible)
+            idx = 0
+            while idx < len(vis_list) :
+                if idx >= len(vis_list) - 2 :
+                    break
+                while not (vis_list[idx] == True and vis_list[idx + 1] == False) :
+                    if idx >= len(vis_list) - 2 :
+                        break
+                    idx += 1
+                if idx >= len(vis_list) - 2 :
+                    break
+                window_end_idx = min(idx + MIN_CONSEC_VERT_TO_DISCONNECT + 1, len(vis_list) - 1)
+                for rid in range(window_end_idx, idx, -1) :
+                    if vis_list[rid] == True :
+                        vis_list[idx:rid] = True
+                        break
+                idx = rid
+                
+                
+            # If length of connection between visible seam vertices
+            # is less then MIN_CONSEC_VERT_TO_BE_SEGMENT,
+            # consider the connection is not a segment
+            # (which change visible seam vertices to invisible)
+            idx = 0
+            while idx < len(vis_list) :
+                if vis_list[idx] != True :
+                    idx += 1
+                    continue
+                idx2 = idx + 1
+                while idx2 < len(vis_list) and vis_list[idx2] == True :
+                    idx2 += 1
+                if idx2 - idx < MIN_CONSEC_VERT_TO_BE_SEGMENT :
+                    vis_list[idx:idx2] = False
+                idx = idx2
+                
+            line_segment_idx_arr_list = []
+            line_segment_pos_arr_list = []
+            if True in vis_list :
+                idx = vis_list.tolist().index(True)
+                while idx < len(vis_list) :
+                    line_segment_idx_list = []
+                    line_segment_pos_list = []
+                    while idx < len(vis_list) and vis_list[idx] == True :
+                        line_segment_idx_list.append(
+                            seam_vert_idx_list[idx]
+                        )
+                        line_segment_pos_list.append(
+                            fltrd_proj_vert_pos_dict[side][seam_vert_idx_list[idx]]
+                        )
+                        idx += 1
+                    if len(line_segment_idx_list) > 0 :
+                        line_segment_idx_arr_list.append(np.array(line_segment_idx_list))
+                        line_segment_pos_arr_list.append(np.array(line_segment_pos_list))
+                    idx += 1
+            
+            if len(line_segment_pos_arr_list) > 0 :
+                segment_edge_len_arr_list = []
+                segment_t_arr_list = []
+                segment_u_arr_list = []
+                segment_v_arr_list = []
+                for segment_pos_arr in line_segment_pos_arr_list :
+                    i_vec = segment_pos_arr[-1] - segment_pos_arr[0]
+                    j_vec = np.array([i_vec[1], -i_vec[0]])
+                    
+                    i_vec_normalized = i_vec / np.linalg.norm(i_vec)
+                    j_vec_normalized = j_vec / np.linalg.norm(j_vec)
+                    
+                    edge_len_arr = np.concatenate((
+                        [0],
+                        np.linalg.norm(segment_pos_arr[1:] - segment_pos_arr[:-1], axis=1)
+                    ))
+                    segment_edge_len_arr_list.append(edge_len_arr)
+                    t_arr = np.cumsum(edge_len_arr) / np.sum(edge_len_arr)
+                    
+                    vect_arr = segment_pos_arr - segment_pos_arr[0]
+                    u_arr = np.sum(vect_arr * i_vec_normalized, axis=1) / np.linalg.norm(i_vec)
+                    v_arr = np.sum(vect_arr * j_vec_normalized, axis=1) / np.linalg.norm(j_vec)
+                    
+                    segment_t_arr_list.append(t_arr)
+                    segment_u_arr_list.append(u_arr)
+                    segment_v_arr_list.append(v_arr)
+                
+                    
+                    if len(t_arr) != len(segment_pos_arr) :
+                        print(side, stch_idx)
+                        print(segment_pos_arr.shape, t_arr.shape, u_arr.shape, v_arr.shape)
+                        print("error")
+                    
+                    
+                    if len(t_arr) != len(u_arr) or len(t_arr) != len(v_arr) :
+                        print(side, stch_idx)
+                        print(edge_len_arr.shape, t_arr.shape, u_arr.shape, v_arr.shape)
+                        print("error")
+                    
+                    error_num = np.sum(
+                        vect_arr - (u_arr.reshape(-1, 1) * i_vec.reshape(1, -1) + v_arr.reshape(-1, 1) * j_vec.reshape(1, -1))
+                    )
+                    if error_num > 1e-6 :
+                        print(side, stch_idx)
+                        print(vect_arr.shape, u_arr.shape, v_arr.shape)
+                        print(error_num)
+                        print("error")
+                fltrd_vis_seam_line_dict[side][stch_idx] = {
+                    "raw_idx_arr" : seam_vert_idx_list,
+                    "raw_vis_mask" : vis_list,
+                    "segment_idx_arr_list" : line_segment_idx_arr_list,
+                    "segment_pos_arr_list" : line_segment_pos_arr_list,
+                    "segment_edge_len_arr_list" : segment_edge_len_arr_list,
+                    "segment_t_arr_list" : segment_t_arr_list,
+                    "segment_u_arr_list" : segment_u_arr_list,
+                    "segment_v_arr_list" : segment_v_arr_list
+                }
+
+
+    with open(os.path.join(garment_path, f"{garment_id}_fltrd_vis_seam_line_dict.pkl"), "wb") as f:
+        pickle.dump(fltrd_vis_seam_line_dict, f)
