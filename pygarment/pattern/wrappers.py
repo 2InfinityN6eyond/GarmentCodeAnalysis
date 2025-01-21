@@ -106,13 +106,16 @@ class VisPattern(core.ParametrizedPattern):
         Returns 
             the lower-right vertex coordinate for the convenice of future offsetting.
         """
+        panel = self.pattern['panels'][panel_name]
+        panel['rotation']
+        panel['translation']
         attributes = {
             'fill':  'rgb(227,175,186)' if fill else 'rgb(255,255,255)',    # fill with white
             'stroke': 'rgb(51,51,51)', 
             'stroke-width': '0.2'
         }
 
-        panel = self.pattern['panels'][panel_name]
+        
         vertices = np.asarray(panel['vertices'])
         vertices, translation = self._verts_to_px_coords(
             vertices, 
@@ -127,7 +130,7 @@ class VisPattern(core.ParametrizedPattern):
             # Z-fist rotation to only reflect rotation visible in XY plane
             # NOTE: Heuristic, might be bug-prone
             rotation = R.from_euler('XYZ', panel['rotation'], degrees=True)   # XYZ
-
+            rotation_translation_info ={ }
             # Estimate degree of rotation of Y axis
             # NOTE: Ox sometimes gets flipped because of 
             # Gimbal locks of this Euler angle representation

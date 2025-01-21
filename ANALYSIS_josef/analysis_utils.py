@@ -3,6 +3,46 @@ import plotly.graph_objects as go
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+def euler_angles_to_rotation_matrix(euler_angles):
+    """
+    Convert Euler angles to a rotation matrix.
+    
+    Parameters:
+    euler_angles (tuple or list): A tuple or list of three angles (roll, pitch, yaw) in radians.
+    
+    Returns:
+    np.ndarray: A 3x3 rotation matrix.
+    """
+    roll, pitch, yaw = euler_angles
+
+    # Compute individual rotation matrices
+    R_x = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll), -np.sin(roll)],
+        [0, np.sin(roll), np.cos(roll)]
+    ])
+
+    R_y = np.array([
+        [np.cos(pitch), 0, np.sin(pitch)],
+        [0, 1, 0],
+        [-np.sin(pitch), 0, np.cos(pitch)]
+    ])
+
+    R_z = np.array([
+        [np.cos(yaw), -np.sin(yaw), 0],
+        [np.sin(yaw), np.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+
+    # Combine the rotation matrices
+    R = np.dot(R_z, np.dot(R_y, R_x))
+
+    return R
+
+
+
+
 # basic visualization fucntions
 
 def plot_panel_info(
