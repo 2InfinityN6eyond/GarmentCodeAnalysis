@@ -4,6 +4,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+
+def set_constants():
+    import socket
+    import os
+    from glob import glob
+    import torch
+
+    hostname = socket.gethostname()
+    if hostname == "hjpui-MacBookPro.local":
+        DATASET_ROOT = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
+        
+    elif hostname == "epyc64":
+        DATASET_ROOT = "/home/hjp/VTO2025/GarmentCodeData"
+        
+    elif hostname == "server" :
+        DATASET_ROOT = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
+
+    return DATASET_ROOT
+
 def euler_angles_to_rotation_matrix(euler_angles):
     """
     Convert Euler angles to a rotation matrix.
