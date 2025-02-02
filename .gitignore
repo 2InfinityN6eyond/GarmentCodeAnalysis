@@ -1,3 +1,7 @@
+ANALYSIS_josef/
+!ANALYSIS_josef/*.py
+!ANALYSIS_josef/*.ipynb
+
 # Jupyter tmp files 
 .ipynb_checkpoints
 

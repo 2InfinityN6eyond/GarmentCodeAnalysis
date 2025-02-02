@@ -158,6 +158,10 @@ render_props = {
     }
 }
 
+sys.path.append(
+    os.path.dirname(os.path.abspath(__file__))
+)
+
 from env_constants import DATASET_ROOT
 
 GARMENT_ROOT_PATH = os.path.join(DATASET_ROOT, "GarmentCodeData_v2")
