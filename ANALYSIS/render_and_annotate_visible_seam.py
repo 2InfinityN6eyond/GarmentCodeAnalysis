@@ -168,6 +168,19 @@ default_body_mesh = trimesh.load(MEAN_ALL_BODY_PATH)
 
 BODY_TYPE = "default_body"
 
+
+def fff(garment_path) :
+    garment_id = os.path.basename(garment_path)
+    if os.path.exists(
+        os.path.join(garment_path, f"{garment_id}_fltrd_vis_seam_line_dict.pkl")
+    ) and os.path.exists(
+        os.path.join(garment_path, f"rendered_front.png")
+    ):
+        return True
+    else :
+        return False
+
+
 garment_path_list = sorted(list(filter(
     os.path.isdir,
     glob(os.path.join(GARMENT_ROOT_PATH, "*", BODY_TYPE, "*"))
@@ -175,6 +188,12 @@ garment_path_list = sorted(list(filter(
 
 print("Number of Garments: ", len(garment_path_list))
 
+garment_path_list = list(filter(
+    lambda x : not fff(x),
+    garment_path_list
+))
+
+print("Number of filtered Garments: ", len(garment_path_list))
 
 # sys.exit()
 
@@ -447,9 +466,9 @@ def process_single_garment(garment_path):
             ]
             if len(endpoints) != 2:
                 
-                print("stitch idx", fltrd_stch_idx)
-                print(fltrd_stch_vert_idx_arr)
-                print(f"Warning: Found {len(endpoints)} endpoints, expected 2. Path may not be linear.")
+                # print("stitch idx", fltrd_stch_idx)
+                # print(fltrd_stch_vert_idx_arr)
+                # print(f"Warning: Found {len(endpoints)} endpoints, expected 2. Path may not be linear.")
                 continue
             
             seam_vert_idx_list = [endpoints[0]]
@@ -600,10 +619,9 @@ def process_single_garment(garment_path):
         return False
 
 if __name__ == '__main__':
-    # Replace the sys.exit() with the parallel processing code
     from multiprocessing import Pool, cpu_count
 
-    # Use 90% of available CPU cores
+    # Use 80% of available CPU cores
     num_processes = max(1, int(cpu_count() * 0.9))
     print(f"Using {num_processes} processes")
 
