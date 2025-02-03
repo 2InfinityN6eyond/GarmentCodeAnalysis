@@ -192,10 +192,10 @@ garment_path_list = sorted(list(filter(
 
 print("Number of Garments: ", len(garment_path_list))
 
-garment_path_list = list(filter(
-    lambda x : not fff(x),
-    garment_path_list
-))
+# garment_path_list = list(filter(
+#     lambda x : not fff(x),
+#     garment_path_list
+# ))
 
 print("Number of filtered Garments: ", len(garment_path_list))
 

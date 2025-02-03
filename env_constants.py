@@ -13,7 +13,7 @@ elif hostname == "epyc64": # A6000 Ada X 4
     PYGARMENT_ROOT  = "/data/HJP/VTO2025/REFERENCES/3D_VTO/GarmentCode"
 elif hostname == "server" : # 4090 X 4
     # PROJECT_ROOT    = "/media/hjp/db6095ca-a560-4c3a-90ad-b667ec189671/florence-tailor"
-    DATASET_ROOT    = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/GarmentCodeData_v2"
+    DATASET_ROOT    = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData"
     PYGARMENT_ROOT  = "/media/hjp/db6095ca-a560-4c3a-90ad-b667ec189671/REFERENCES/3D_VTO/GarmentCode/GarmentCode"
 elif hostname == "miracle" : # A6000 X 4
     # PROJECT_ROOT    = "/home/hjp/VTO/florence-tailor"
