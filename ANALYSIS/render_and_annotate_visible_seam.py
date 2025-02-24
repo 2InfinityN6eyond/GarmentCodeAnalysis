@@ -165,6 +165,7 @@ if host_name == "SERVER":
     DATASET_ROOT_PATH = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
 elif host_name == "epyc64":
     DATASET_ROOT_PATH = "/data/HJP/VTO2025/DATASET/690432"
+    DATASET_ROOT_PATH = "/home/hjp/VTO2025/GarmentCodeData"
 else:
     DATASET_ROOT_PATH = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
 
@@ -475,10 +476,9 @@ for garment_path in tqdm(garment_path_list):
             v for v in fltrd_stch_vert_idx_arr if len(adj_dict.get(v, set())) == 1
         ]
         if len(endpoints) != 2:
-            
-            print("stitch idx", fltrd_stch_idx)
-            print(fltrd_stch_vert_idx_arr)
-            print(f"Warning: Found {len(endpoints)} endpoints, expected 2. Path may not be linear.")
+            # print("stitch idx", fltrd_stch_idx)
+            # print(fltrd_stch_vert_idx_arr)
+            # print(f"Warning: Found {len(endpoints)} endpoints, expected 2. Path may not be linear.")
             continue
         
         seam_vert_idx_list = [endpoints[0]]
