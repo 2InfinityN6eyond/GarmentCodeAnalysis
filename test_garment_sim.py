@@ -55,6 +55,8 @@ if __name__ == "__main__":
     print('\nGarment load: ', paths.in_g_spec)
     # paths.in_g_spec seems to be the path to the pattern specification file   *specification.json
 
+
+    import ipdb; ipdb.set_trace()
     
     garment_box_mesh = BoxMesh(paths.in_g_spec, props['sim']['config']['resolution_scale'])
     garment_box_mesh.load()
