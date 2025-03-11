@@ -716,6 +716,16 @@ def read_poc_datapoint(
     garment_path, 
     view_name_list = ["front", "back", "left", "right"],
     panel_name_refine_map = None,
+    return_data_list = [
+            "rendered_image_dict",
+            "panel_svg_path_dict",
+            "stitch_dict",
+            "panel_vertex_mask_dict",
+            "vertex_visibility_mask_dict",
+            "projected_vertex_pose_dict",
+            "fltrd_vis_seam_line_dict",
+            "box_mesh",
+    ]
 ) :
     (
         rendered_image_dict,
@@ -727,17 +737,19 @@ def read_poc_datapoint(
         fltrd_vis_seam_line_dict,
         box_mesh,
     ) = read_poc_files(
-        os.path.join(DATASET_ROOT, garment_path),
-        return_data_list = [
-            "rendered_image_dict",
-            "panel_svg_path_dict",
-            "stitch_dict",
-            "panel_vertex_mask_dict",
-            "vertex_visibility_mask_dict",
-            "projected_vertex_pose_dict",
-            "fltrd_vis_seam_line_dict",
-            "box_mesh",
-        ]
+        # os.path.join(DATASET_ROOT, garment_path),
+        garment_path,
+        return_data_list = return_data_list
+        # [
+        #     "rendered_image_dict",
+        #     "panel_svg_path_dict",
+        #     "stitch_dict",
+        #     "panel_vertex_mask_dict",
+        #     "vertex_visibility_mask_dict",
+        #     "projected_vertex_pose_dict",
+        #     "fltrd_vis_seam_line_dict",
+        #     "box_mesh",
+        # ]
     )
     view_label_dict = {}
     for side in view_name_list :
