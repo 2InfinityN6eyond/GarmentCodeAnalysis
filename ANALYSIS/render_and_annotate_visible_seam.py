@@ -158,6 +158,22 @@ render_props = {
     }
 }
 
+<<<<<<< HEAD
+import socket
+host_name = socket.gethostname()
+
+if host_name == "SERVER":
+    DATASET_ROOT_PATH = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
+elif host_name == "epyc64":
+    DATASET_ROOT_PATH = "/data/HJP/VTO2025/DATASET/690432"
+    DATASET_ROOT_PATH = "/home/hjp/VTO2025/GarmentCodeData"
+else:
+    DATASET_ROOT_PATH = "/media/hjp/05aba9a7-0e74-4e54-9bc9-5f11b9c4c757/GarmentCodeData/"
+
+GARMENT_ROOT_PATH = os.path.join(DATASET_ROOT_PATH, "GarmentCodeData_v2")
+BODY_ROOT_PATH = os.path.join(DATASET_ROOT_PATH, "body_mesh")
+MEAN_ALL_BODY_PATH = os.path.join(DATASET_ROOT_PATH, "neutral_body/mean_all.obj")
+=======
 sys.path.append(
     os.path.dirname(os.path.abspath(__file__))
 )
@@ -167,6 +183,7 @@ from env_constants import DATASET_ROOT
 GARMENT_ROOT_PATH = os.path.join(DATASET_ROOT, "GarmentCodeData_v2")
 BODY_ROOT_PATH = os.path.join(DATASET_ROOT, "body_mesh")
 MEAN_ALL_BODY_PATH = os.path.join(DATASET_ROOT, "neutral_body/mean_all.obj")
+>>>>>>> 2fc3b8caff7b2357297ae82449b8c4ac5290291e
     
 default_body_mesh = trimesh.load(MEAN_ALL_BODY_PATH)
 
@@ -457,6 +474,45 @@ def process_single_garment(garment_path):
             fltrd_stch_vert_map = filtered_stitch_vertex_mask_dict[fltrd_stch_idx]
             fltrd_stch_vert_idx_arr = np.where(fltrd_stch_vert_map)[0]
             
+<<<<<<< HEAD
+    fltrd_seam_line_dict = {}
+    for fltrd_stch_idx in filtered_stitch_vertex_mask_dict.keys():
+        fltrd_stch_vert_map = filtered_stitch_vertex_mask_dict[fltrd_stch_idx]
+        fltrd_stch_vert_idx_arr = np.where(fltrd_stch_vert_map)[0]
+        
+        adj_dict = {}
+        for v1, v2 in filtered_edges:
+            if v1 in fltrd_stch_vert_idx_arr and v2 in fltrd_stch_vert_idx_arr:
+                if v1 not in adj_dict: adj_dict[v1] = set()
+                if v2 not in adj_dict: adj_dict[v2] = set()
+                adj_dict[v1].add(v2)
+                adj_dict[v2].add(v1)
+        
+        endpoints = [
+            v for v in fltrd_stch_vert_idx_arr if len(adj_dict.get(v, set())) == 1
+        ]
+        if len(endpoints) != 2:
+            # print("stitch idx", fltrd_stch_idx)
+            # print(fltrd_stch_vert_idx_arr)
+            # print(f"Warning: Found {len(endpoints)} endpoints, expected 2. Path may not be linear.")
+            continue
+        
+        seam_vert_idx_list = [endpoints[0]]
+        while len(seam_vert_idx_list) < len(fltrd_stch_vert_idx_arr):
+            current_vert = seam_vert_idx_list[-1]
+            neighbors = adj_dict[current_vert]
+            next_vert = next((v for v in neighbors if v not in seam_vert_idx_list), None)
+            if next_vert is None:
+                break
+            seam_vert_idx_list.append(next_vert)
+        fltrd_seam_line_dict[fltrd_stch_idx] = seam_vert_idx_list
+
+    fltrd_vis_seam_line_dict = {}
+    for side in fltrd_vis_vert_mask_dict.keys() :
+        fltrd_vis_seam_line_dict[side] = {}
+        vis_mask = np.array(fltrd_vis_vert_mask_dict[side]).astype(bool)
+        for stch_idx in fltrd_seam_line_dict.keys():
+=======
             adj_dict = {}
             for v1, v2 in filtered_edges:
                 if v1 in fltrd_stch_vert_idx_arr and v2 in fltrd_stch_vert_idx_arr:
@@ -474,6 +530,7 @@ def process_single_garment(garment_path):
                 # print(fltrd_stch_vert_idx_arr)
                 # print(f"Warning: Found {len(endpoints)} endpoints, expected 2. Path may not be linear.")
                 continue
+>>>>>>> 2fc3b8caff7b2357297ae82449b8c4ac5290291e
             
             seam_vert_idx_list = [endpoints[0]]
             while len(seam_vert_idx_list) < len(fltrd_stch_vert_idx_arr):
