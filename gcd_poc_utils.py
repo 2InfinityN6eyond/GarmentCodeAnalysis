@@ -1,11 +1,12 @@
 import os 
 import sys
 
-# sys.path.append(os.path.dirname(os.getcwd()))
-from env_constants import PYGARMENT_ROOT, DATASET_ROOT
-
-# sys.path.append(PYGARMENT_ROOT)
+sys.path.append(os.path.dirname(os.getcwd()))
+from env_constants import PYGARMENT_ROOT
+sys.path.append(PYGARMENT_ROOT)
 import pygarment as pyg
+
+import trimesh
 
 import math
 import pickle
@@ -15,7 +16,7 @@ from PIL import Image
 from copy import deepcopy
 from torch.utils.data import Dataset
 import random
-import trimesh
+
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple
@@ -94,11 +95,9 @@ class SVGPanel:
     def edge_len_list(self) :
         return [edge.length() for edge in self.svg_path]
     
-    @property
     def normalized_edge_stt(self, edge_idx : int) :
         return sum(self.edge_len_list[:edge_idx]) / sum(self.edge_len_list)
         
-    @property
     def normalized_edge_end(self, edge_idx : int) :
         return sum(self.edge_len_list[:edge_idx+1]) / sum(self.edge_len_list)
     
@@ -716,16 +715,6 @@ def read_poc_datapoint(
     garment_path, 
     view_name_list = ["front", "back", "left", "right"],
     panel_name_refine_map = None,
-    return_data_list = [
-        "rendered_image_dict",
-        "panel_svg_path_dict",
-        "stitch_dict",
-        "panel_vertex_mask_dict",
-        "vertex_visibility_mask_dict",
-        "projected_vertex_pose_dict",
-        "fltrd_vis_seam_line_dict",
-        # "box_mesh",
-    ]
 ) :
     (
         rendered_image_dict,
@@ -735,11 +724,19 @@ def read_poc_datapoint(
         vertex_visibility_mask_dict,
         projected_vertex_pose_dict,
         fltrd_vis_seam_line_dict,
-        # box_mesh,
+        box_mesh,
     ) = read_poc_files(
-        garment_path,
-        # os.path.join(DATASET_ROOT, garment_path),
-        return_data_list,
+        os.path.join(DATASET_ROOT, garment_path),
+        return_data_list = [
+            "rendered_image_dict",
+            "panel_svg_path_dict",
+            "stitch_dict",
+            "panel_vertex_mask_dict",
+            "vertex_visibility_mask_dict",
+            "projected_vertex_pose_dict",
+            "fltrd_vis_seam_line_dict",
+            "box_mesh",
+        ]
     )
     view_label_dict = {}
     for side in view_name_list :
@@ -753,10 +750,7 @@ def read_poc_datapoint(
     
     return view_label_dict, SewingPattern(
         panel_svg_path_dict, stitch_dict, panel_name_refine_map
-    ), (
-        # box_mesh,
-        panel_vertex_mask_dict
-    )
+    ), (box_mesh, panel_vertex_mask_dict)
     
     
 def combine_images_and_labels(
