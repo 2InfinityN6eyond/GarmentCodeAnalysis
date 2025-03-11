@@ -1,6 +1,7 @@
 import os, sys, socket
 from glob import glob
 hostname = socket.gethostname()
+
 if hostname == "hjpui-MacBookPro.local":
     # PROJECT_ROOT    = "/Users/hjp/HJP/KUAICV/VTO/florence-tailor"
     DATASET_ROOT    = "/Users/hjp/HJP/KUAICV/VTO/DATASET/PoC59"
@@ -21,9 +22,6 @@ elif hostname == "miracle" : # A6000 X 4
     DATASET_ROOT    = "/ssd/HJP/CodeData2/GarmentCodeData_v2"
     PYGARMENT_ROOT  = "/home/hjp/VTO/GarmentCodeAnalysis"    
 elif hostname == "hjp-MS-7D42" : # 3090 X 1
-    image_path_list = sorted(glob(
-        "/media/hjp/db6095ca-a560-4c3a-90ad-b667ec189671/REFERENCES/VLM/MM/data/Screenshots_accum/*"
-    ))
     # PROJECT_ROOT    = "/media/hjp/FAAC278CAC27430D/HJP/KUAICV/VTO/florence-tailor"
     DATASET_ROOT    = "/media/hjp/efef19d3-9b92-453c-ba04-c205f7233cab/VTO_DATASET/PoC59"
     PYGARMENT_ROOT  = "/media/hjp/FAAC278CAC27430D/HJP/KUAICV/VTO/REFERENCES/GarmentCodeAnalysis"

@@ -587,6 +587,9 @@ class BoxMesh(wrappers.VisPattern):
             print(f'{self.__class__.__name__}::WARNING::{self.name}::Provided pattern has self-intersecting panels. Simulation might crash')
 
         self.load_panels()
+        
+        import ipdb; ipdb.set_trace()
+        
         self.gen_panel_meshes()
 
         # NOTE: Collapse stitch vertices and store to self.vertices as well as their stitch_id to self.stitch_segmentation

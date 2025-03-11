@@ -242,7 +242,6 @@ def run_sim(
 
     garment.save_frame(save_v_norms=save_v_norms) #saving after stats
 
-    import pdb; pdb.set_trace()
 
     # Render images
     s_time = time.time()

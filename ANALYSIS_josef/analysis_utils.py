@@ -118,9 +118,108 @@ def plot_panel_info(
                 f"no stitch,\n{edge_idx}",
                 ha='center', va='center'
             )
-            
-            
+import plotly.graph_objects as go
+import trimesh
+# 임시 
+# def visualize_meshes_plotly(
+#     mesh_list,
+#     color_list=None,
+#     vertices_list=None,
+#     vertices_color_list=None,
+#     vertex_marker_size=2,
+#     show_edges=True,
+#     edge_width=2,
+#     vector_list=None,  # ✅ 벡터 추가
+#     vector_color_list=None,  # ✅ 벡터 색상 추가
+#     vector_width=3,  # ✅ 벡터 선 두께 설정
+#     show=True,
+# ):
+#     # Pre-convert to list and load meshes once
+#     mesh_list = [mesh_list] if not isinstance(mesh_list, list) else mesh_list
+#     final_mesh_list = [trimesh.load(m) if isinstance(m, str) else m for m in mesh_list]
+    
+#     color_list = color_list or ['lightgray'] * len(final_mesh_list)
+    
+#     # Create all mesh traces at once
+#     mesh_traces = []
+#     edge_traces = []
+    
+#     for mesh, color in zip(final_mesh_list, color_list):
+#         face_colors = mesh.visual.face_colors[:, :3] if hasattr(mesh.visual, 'face_colors') else None
+#         mesh_traces.append(go.Mesh3d(
+#             x=mesh.vertices[:, 0],
+#             y=mesh.vertices[:, 1],
+#             z=mesh.vertices[:, 2],
+#             i=mesh.faces[:, 0],
+#             j=mesh.faces[:, 1],
+#             k=mesh.faces[:, 2],
+#             opacity=0.5,
+#             facecolor=face_colors,
+#             color=None if face_colors is not None else color
+#         ))
+        
+#         if show_edges:
+#             edge_x = []
+#             edge_y = []
+#             edge_z = []
+#             vertices = mesh.vertices
+#             for edge in mesh.edges:
+#                 edge_x.extend([vertices[edge[0], 0], vertices[edge[1], 0], None])
+#                 edge_y.extend([vertices[edge[0], 1], vertices[edge[1], 1], None])
+#                 edge_z.extend([vertices[edge[0], 2], vertices[edge[1], 2], None])
+        
+#             edge_traces.append(go.Scatter3d(
+#                 x=edge_x, y=edge_y, z=edge_z,
+#                 mode='lines',
+#                 line=dict(
+#                     color=color if color is not None else 'red',
+#                     width=edge_width
+#                 ),
+#                 name='Edges'
+#             ))
+    
+#     fig = go.Figure(data=mesh_traces + edge_traces)
+    
+#     # ✅ 점(Vertices) 추가
+#     if vertices_list is not None and vertices_color_list is not None:
+#         for vertex, color in zip(vertices_list, vertices_color_list):
+#             fig.add_trace(go.Scatter3d(
+#                 x=vertex[:, 0],
+#                 y=vertex[:, 1],
+#                 z=vertex[:, 2],
+#                 mode='markers',
+#                 marker=dict(size=vertex_marker_size, color=color, opacity=1),
+#                 name='Vertices'
+#             ))
 
+#     # ✅ 벡터(Vector) 추가 (점과 점을 연결하는 선)
+#     if vector_list is not None:
+#         vector_color_list = vector_color_list or ['black'] * len(vector_list)
+        
+#         for (start, end), color in zip(vector_list, vector_color_list):
+#             fig.add_trace(go.Scatter3d(
+#                 x=[start[0], end[0]],
+#                 y=[start[1], end[1]],
+#                 z=[start[2], end[2]],
+#                 mode='lines+markers',
+#                 line=dict(color=color, width=vector_width),
+#                 marker=dict(size=4, color=color),
+#                 name='Vector'
+#             ))
+
+#     # 📌 3D Scene 설정
+#     fig.update_layout(
+#         scene=dict(aspectmode='data'),
+#         width=800,
+#         height=800,
+#         showlegend=False
+#     )
+    
+#     if show:
+#         fig.show()
+    
+#     return fig            
+            
 def visualize_meshes_plotly(
     mesh_list,
     color_list=None,
@@ -129,6 +228,7 @@ def visualize_meshes_plotly(
     vertex_marker_size = 2,
     show_edges = True,
     edge_width = 2,
+    show = True,
 ):
     # Pre-convert to list and load meshes once
     mesh_list = [mesh_list] if not isinstance(mesh_list, list) else mesh_list
@@ -192,7 +292,9 @@ def visualize_meshes_plotly(
         showlegend=False
     )
     
-    fig.show()
+    if show:
+        fig.show()
+    return fig
     
     
     

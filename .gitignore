@@ -1,8 +1,8 @@
-ANALYSIS_josef/
+ANALYSIS_josef/*
 !ANALYSIS_josef/*.py
 !ANALYSIS_josef/*.ipynb
 
-ANALYSIS/
+ANALYSIS/*
 !ANALYSIS/*.py
 !ANALYSIS/*.ipynb
 
