@@ -1,6 +1,9 @@
 ANALYSIS_josef/*
 !ANALYSIS_josef/*.py
 !ANALYSIS_josef/*.ipynb
+ANALYSIS_josef/Thinking/*
+!ANALYSIS_josef/Thinking/*.py
+!ANALYSIS_josef/Thinking/*.ipynb
 
 ANALYSIS/*
 !ANALYSIS/*.py
