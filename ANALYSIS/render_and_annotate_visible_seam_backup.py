@@ -176,7 +176,7 @@ garment_path_list = sorted(list(filter(
 print("Number of Garments: ", len(garment_path_list))
 
 
-sys.exit()
+# sys.exit()
 
 MIN_CONSEC_VERT_TO_BE_SEGMENT = 3
 # Connect Disconnected vertices, if length of disconnected vertices <= MIN_CONSEC_VERT_TO_DISCONNECT
