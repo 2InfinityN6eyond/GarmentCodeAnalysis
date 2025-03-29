@@ -1,12 +1,14 @@
+
 import os 
 import sys
 
 sys.path.append(os.path.dirname(os.getcwd()))
-from env_constants import PYGARMENT_ROOT
-sys.path.append(PYGARMENT_ROOT)
-import pygarment as pyg
+sys.path.append(os.path.dirname(os.path.dirname(os.getcwd())))
+# sys.path.append(os.path.dirname(os.getcwd()))
+from env_constants import PYGARMENT_ROOT, DATASET_ROOT
 
-import trimesh
+# sys.path.append(PYGARMENT_ROOT)
+import pygarment as pyg
 
 import math
 import pickle
@@ -16,7 +18,7 @@ from PIL import Image
 from copy import deepcopy
 from torch.utils.data import Dataset
 import random
-
+import trimesh
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple
@@ -24,6 +26,30 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
+
+
+
+def min_dist_between_edges(edge1, edge2, N_SAMPLE_PER_EDGE = 50) :
+    sample_t_arr = np.linspace(0, 1, N_SAMPLE_PER_EDGE)
+    edge_sample_point_arr_list = []
+    for edge in [edge1, edge2] :
+        edge_sample_point_arr_list.append(
+            np.array([
+                [edge.point(t).real, edge.point(t).imag]
+                for t in sample_t_arr
+            ])
+        )
+        
+    final_min_dist = np.inf
+    for p1 in edge_sample_point_arr_list[0] :
+        min_dist = np.min(
+            np.linalg.norm(
+                p1 - edge_sample_point_arr_list[1],
+                axis = 1
+            )
+        )
+        final_min_dist = np.min([final_min_dist, min_dist])
+    return final_min_dist
 
 
 @dataclass
@@ -95,9 +121,11 @@ class SVGPanel:
     def edge_len_list(self) :
         return [edge.length() for edge in self.svg_path]
     
+    # @property
     def normalized_edge_stt(self, edge_idx : int) :
         return sum(self.edge_len_list[:edge_idx]) / sum(self.edge_len_list)
         
+    # @property
     def normalized_edge_end(self, edge_idx : int) :
         return sum(self.edge_len_list[:edge_idx+1]) / sum(self.edge_len_list)
     
@@ -119,6 +147,23 @@ class SVGPanel:
         self.svg_path = svgpath.Path(*[
             (path.translated(-pivot_complex)).scaled(factor).translated(pivot_complex) for path in self.svg_path
         ])
+        
+    def set_scale_to(self, size : float, use_vert_bbox : bool = False) -> float :
+        if use_vert_bbox :
+            x1, y1, x2, y2 = self.vert_bbox()
+        else :
+            x1, y1, x2, y2 = self.bbox()
+        width = x2 - x1
+        height = y2 - y1
+
+        scale_factor = size / max(width, height)
+        self.scale(scale_factor)
+        return scale_factor
+    
+    def set_start_position_at(self, x : float, y : float) -> None :
+        start_x = self.svg_path[0].start.real
+        start_y = self.svg_path[0].start.imag
+        self.translate(x - start_x, y - start_y)
         
     def rotate_clockwise(self, angle_degrees: float, pivot: np.ndarray = np.array([0, 0])) -> None:
         """
@@ -177,7 +222,8 @@ class SVGPanel:
         panel_name  : str = None,
         N_SAMPLE_PER_EDGE : int = 80,
         stitch_list : List[int] = None,
-        edge_color_list : List[Tuple[float, float, float]] = None
+        edge_color_list : List[Tuple[float, float, float]] = None,
+        invert_yaxis : bool = True,
     ) -> None:
         if stitch_list is not None :
             assert len(stitch_list) == len(self.svg_path), "stitch_list must be the same length as the number of edges"
@@ -238,19 +284,35 @@ class SVGPanel:
                     color = edge_color,
                     fontsize = 11, fontweight = "bold"
                 )
-        ax.invert_yaxis()
+        if invert_yaxis :
+            ax.invert_yaxis()
         ax.axis("equal")
         
-    def is_clockwise(self) -> bool:
+    def is_clockwise(self, n_sample_per_edge : int = 10) -> bool:
         """
         Determine if the path is clockwise.
         """
         total = 0
         for segment in self.svg_path:
-            start = segment.start
-            end = segment.end
-            total += (end.real - start.real) * (end.imag + start.imag)
+            t_list = np.linspace(0, 1, n_sample_per_edge)
+            sampled_points = np.array(list(map(
+                lambda t : [segment.point(t).real, segment.point(t).imag],
+                t_list
+            )))
+            
+            total += np.sum(
+                (
+                    sampled_points[1:, 0] - sampled_points[:-1, 0]
+                ) * (
+                    sampled_points[1:, 1] + sampled_points[:-1, 1]
+                )
+            )
+            
+            # start = segment.start
+            # end = segment.end
+            # total += (end.real - start.real) * (end.imag + start.imag)
         return total <= 0
+
 
     def reverse_path(self) -> None:
         """
@@ -268,29 +330,47 @@ class SVGPanel:
         """
         self.svg_path = svgpath.Path(*(self.svg_path[idx:] + self.svg_path[:idx]))
 
-    def min_distance_to_point(self, point: complex) -> float:
-        """
-        Calculate the minimum distance from any point on the panel to a given point.
         
-        Args:
-            point: A complex number representing the point in the complex plane.
-            
-        Returns:
-            float: The minimum distance from any point on the panel to the given point.
-        """
-        min_distance = float('inf')
-        for path in self.svg_path:
-            for segment in path:
-                distance = segment.distance(point)
-                if distance < min_distance:
-                    min_distance = distance
-        return min_distance
+    def find_narrowest_distance(self, N_SAMPLE_PER_EDGE = 50) :
+        edge_idx_combination_list = []
+        for edge_idx1 in range(len(list(self.svg_path))) :
+            for edge_idx2 in range(edge_idx1 + 1, len(list(self.svg_path))) :
+                edge_idx_combination_list.append(
+                    (edge_idx1, edge_idx2)
+                )
+        edge_combination_list = []
+        for edge_idx1, edge_idx2 in edge_idx_combination_list :
+            if edge_idx1 == edge_idx2 :
+                continue
+            if np.abs(edge_idx1 - edge_idx2) in [1, len(list(self.svg_path)) - 1] :
+                continue
+            else :
+                edge_combination_list.append(
+                    (list(self.svg_path)[edge_idx1], list(self.svg_path)[edge_idx2])
+                )
+        final_min_dist = np.inf
+        for edge1, edge2 in edge_combination_list :
+            min_dist = min_dist_between_edges(edge1, edge2, N_SAMPLE_PER_EDGE)
+            final_min_dist = np.min([final_min_dist, min_dist])
+        return final_min_dist
     
     def bbox(self) :
         """
         (xmin, ymin, xmax, ymax)
         """
         xmin, xmax, ymin, ymax = svgpath.Path(*self.svg_path).bbox()
+        return xmin, ymin, xmax, ymax
+    
+    def vert_bbox(self) :
+        vert_list = []
+        for edge in self.svg_path :
+            vert_list.append([edge.start.real, edge.start.imag])
+        vert_arr = np.array(vert_list)
+        # print(vert_arr)
+        xmin = np.min(vert_arr[:, 0])
+        xmax = np.max(vert_arr[:, 0])
+        ymin = np.min(vert_arr[:, 1])
+        ymax = np.max(vert_arr[:, 1])
         return xmin, ymin, xmax, ymax
     
     def get_center(self) :
@@ -458,6 +538,21 @@ class SewingPattern :
     def panel_list(self) :
         return list(self.panel_dict.values())
     
+    def set_panel_start(self, panel_name : str, start_idx : int) :
+        panel_edge_count = len(self.panel_dict[panel_name].svg_path)
+        panel_edge_idx_map = {
+            idx : (idx - start_idx) % panel_edge_count
+            for idx in range(panel_edge_count)
+        }
+        for stch_id, stitch in self.stitch_dict.items() :
+            if stitch.panel_0 == panel_name :
+                stitch.edge_0 = panel_edge_idx_map[stitch.edge_0]
+            if stitch.panel_1 == panel_name :
+                stitch.edge_1 = panel_edge_idx_map[stitch.edge_1]
+        
+        self.panel_dict[panel_name].set_start(start_idx)
+        
+    
     def reverse_panel_path(self, panel_name : str) :
         panel_edge_len = len(self.panel_dict[panel_name].svg_path)
         self.panel_dict[panel_name].reverse_path()
@@ -489,6 +584,7 @@ class SewingPattern :
         # ax : plt.Axes = None,
         FIGLEN : int = 5,
         N_SAMPLE_PER_EDGE : int = 80, 
+        invert_yaxis = True,
         show=False
     ) :
         NROWS = int(np.ceil(len(self.panel_dict) ** 0.5))
@@ -518,13 +614,32 @@ class SewingPattern :
             ax = plt.subplot(NROWS, NCOLS, panel_idx + 1)
             panel.draw(
                 ax, panel_name, N_SAMPLE_PER_EDGE,
-                stitch_idx_list, edge_color_list
+                stitch_idx_list, edge_color_list,
+                invert_yaxis = invert_yaxis
             )
         if show :
             plt.show()
+            
+    def get_panel_stch_idx_list(self, panel_name : str) :
+        panel_stch_idx_list = []
+        for edge_idx in range(len(self.panel_dict[panel_name].svg_path)) :
+            stitch_idx = -1
+            for stch_idx, stitch in self.stitch_dict.items() :
+                if (
+                    stitch.panel_0 == panel_name and stitch.edge_0 == edge_idx
+                ) or (
+                    stitch.panel_1 == panel_name and stitch.edge_1 == edge_idx
+                ):
+                    stitch_idx = stch_idx
+                    break
+            panel_stch_idx_list.append(stitch_idx)
+        return panel_stch_idx_list
+    
     
 @dataclass
 class ParameterizedSeamLine :
+    stch_idx : int = None
+    
     whole_stch_vert_idx_arr : np.ndarray = None
     whole_stch_vert_vis_mask : np.ndarray = None
     # whole_stch_vert_projected_pos_arr : np.ndarray = None
@@ -541,6 +656,38 @@ class ParameterizedSeamLine :
             segment_vert_pos_arr[:, 0] += dx
             segment_vert_pos_arr[:, 1] += dy
 
+    def reverse_order(self) :
+        self.whole_stch_vert_idx_arr = self.whole_stch_vert_idx_arr[::-1]
+        self.whole_stch_vert_vis_mask = self.whole_stch_vert_vis_mask[::-1]
+        self.segment_vert_idx_arr_list = [
+            segment_vert_idx_arr[::-1] for segment_vert_idx_arr in self.segment_vert_idx_arr_list
+        ]
+        self.segment_vert_pos_arr_list = [
+            segment_vert_pos_arr[::-1] for segment_vert_pos_arr in self.segment_vert_pos_arr_list
+        ]
+        self.segment_edge_len_arr_list = [
+            segment_edge_len_arr[::-1] for segment_edge_len_arr in self.segment_edge_len_arr_list
+        ]
+        self.segment_t_arr_list = [
+            1 - segment_t_arr[::-1] for segment_t_arr in self.segment_t_arr_list
+        ]
+        self.segment_u_arr_list = [
+            1 - segment_u_arr[::-1] for segment_u_arr in self.segment_u_arr_list
+        ]
+        self.segment_v_arr_list = [
+            -segment_v_arr[::-1] for segment_v_arr in self.segment_v_arr_list
+        ]
+    
+    def reorder_segments(
+        self, order_f
+    ) :
+        for segment_idx in range(len(self.segment_vert_pos_arr_list)) :
+            if not order_f(self.segment_vert_pos_arr_list[segment_idx]) :
+                self.segment_vert_pos_arr_list[segment_idx] = self.segment_vert_pos_arr_list[segment_idx][::-1]
+                self.segment_edge_len_arr_list[segment_idx] = self.segment_edge_len_arr_list[segment_idx][::-1]
+                self.segment_t_arr_list[segment_idx] = 1 - self.segment_t_arr_list[segment_idx][::-1]
+                self.segment_u_arr_list[segment_idx] = 1 - self.segment_u_arr_list[segment_idx][::-1]
+                self.segment_v_arr_list[segment_idx] = -self.segment_v_arr_list[segment_idx][::-1]
 
 @dataclass
 class ParameterizedEdgeLine :
@@ -565,6 +712,7 @@ class SingleViewLabel :
         self.seam_line_dict = {}
         for seam_line_idx, seam_line in fltrd_vis_seam_line_dict.items() :
             self.seam_line_dict[seam_line_idx] = ParameterizedSeamLine(
+                stch_idx = seam_line_idx,
                 whole_stch_vert_idx_arr = seam_line["raw_idx_arr"],
                 whole_stch_vert_vis_mask = seam_line["raw_vis_mask"],
                 segment_vert_idx_arr_list = seam_line["segment_idx_arr_list"],
@@ -612,19 +760,19 @@ class SingleViewLabel :
         for seam_line_idx, seam_line_info in self.seam_line_dict.items() :
             seam_line_info.translate(dx, dy)
 
-
 class UnconstrainedFewViewLabel :
     def __init__(self,
         sewing_pattern : SewingPattern,
+        vert_visibility_mask_list : List[np.ndarray],
     ) :
         self.sewing_pattern = sewing_pattern
-        
         self.img = None
         self.seam_line_dict_list = []
+        self.vert_visibility_mask_list = vert_visibility_mask_list
         
     def order_seam(self) :
         pass
-    
+
     def mirror_back_panel_horizontally(self) :
         for panel_name, panel in self.sewing_pattern.panel_dict.items() :
             if (
@@ -634,10 +782,15 @@ class UnconstrainedFewViewLabel :
             ) :
                 panel.mirror_horizontal()
     
-    def unifiy_loop_direction(self, clockwise_only : bool = True) :
+    def unify_loop_direction(self, clockwise_only : bool = True) :
         for panel_name, panel in self.sewing_pattern.panel_dict.items() :
             if panel.is_clockwise() != clockwise_only :
                 self.sewing_pattern.reverse_panel_path(panel_name)
+
+    # def normalize_coord(self, width : int, height : int, resize_img : bool = False) :
+    #     if resize_img :
+    #         self.img = self.img.resize((width, height))
+            
 
 
 def get_poc_dataset_view_name_list() :
@@ -707,7 +860,6 @@ def read_poc_files(
             os.path.join(garment_path, f"{garment_id}_boxmesh.ply"),
             process=False
         )
-            
     return [values for key, values in locals().items() if key in return_data_list]
 
 
@@ -715,6 +867,16 @@ def read_poc_datapoint(
     garment_path, 
     view_name_list = ["front", "back", "left", "right"],
     panel_name_refine_map = None,
+    return_data_list = [
+        "rendered_image_dict",
+        "panel_svg_path_dict",
+        "stitch_dict",
+        "panel_vertex_mask_dict",
+        "vertex_visibility_mask_dict",
+        "projected_vertex_pose_dict",
+        "fltrd_vis_seam_line_dict",
+        "box_mesh",
+    ]
 ) :
     (
         rendered_image_dict,
@@ -726,17 +888,9 @@ def read_poc_datapoint(
         fltrd_vis_seam_line_dict,
         box_mesh,
     ) = read_poc_files(
-        os.path.join(DATASET_ROOT, garment_path),
-        return_data_list = [
-            "rendered_image_dict",
-            "panel_svg_path_dict",
-            "stitch_dict",
-            "panel_vertex_mask_dict",
-            "vertex_visibility_mask_dict",
-            "projected_vertex_pose_dict",
-            "fltrd_vis_seam_line_dict",
-            "box_mesh",
-        ]
+        garment_path,
+        # os.path.join(DATASET_ROOT, garment_path),
+        return_data_list,
     )
     view_label_dict = {}
     for side in view_name_list :
@@ -750,99 +904,8 @@ def read_poc_datapoint(
     
     return view_label_dict, SewingPattern(
         panel_svg_path_dict, stitch_dict, panel_name_refine_map
-    ), (box_mesh, panel_vertex_mask_dict)
-    
-    
-def combine_images_and_labels(
-    view_label_list: List[SingleViewLabel],
-    sewing_pattern : SewingPattern,
-) :
-    """
-    Can handle max 6 views
-    """
-    N_VIEWS = len(view_label_list)
-    assert N_VIEWS <= 6, "Can handle max 6 views"
-    
-    combined_label = UnconstrainedFewViewLabel(
-        sewing_pattern,
+    ), (
+        box_mesh,
+        panel_vertex_mask_dict
     )
     
-    if len(view_label_list) == 1 :
-        IMG_W, IMG_H = view_label_list[0].img.size
-        img_bbox_x1, img_bbox_y1, img_bbox_x2, img_bbox_y2 = get_bbox_from_mask(view_label_list[0].img_foreground_mask)
-        crop_t = random.randint(0, img_bbox_y1)
-        crop_b = random.randint(img_bbox_y2, IMG_H - 1)
-        crop_l = random.randint(0, img_bbox_x1)
-        crop_r = random.randint(img_bbox_x2, IMG_W - 1)
-        view_label_list[0].crop(crop_l, crop_t, crop_r, crop_b)
-        combined_label.img = view_label_list[0].img
-        combined_label.seam_line_dict_list.append(view_label_list[0].seam_line_dict)
-        return combined_label
-        
-    bb_w_list = []
-    bb_h_list = []
-    for view_label in view_label_list :
-        x1, y1, x2, y2 = get_bbox_from_mask(view_label.img_foreground_mask)
-        # view_label.crop(x1, y1, x2, y2)
-        bb_w_list.append(x2 - x1)
-        bb_h_list.append(y2 - y1)
-    if len(view_label_list) in [2, 3] :
-        h = np.max(bb_h_list)
-        x_pos = 0
-        for (view_label, bb_w) in zip(view_label_list, bb_w_list) :
-            x1, y1, x2, y2 = get_bbox_from_mask(view_label.img_foreground_mask)
-            view_label.crop(x1, y1, x2, y2)
-            view_label.pad(0, 0, 0, h - (y2 - y1))
-            view_label.translate(x_pos, 0)
-            combined_label.seam_line_dict_list.append(
-                view_label.seam_line_dict
-            )
-            x_pos += bb_w
-            
-        combined_label.img = Image.fromarray(np.hstack([
-            np.array(view_label.img) for view_label in view_label_list
-        ]))
-    elif len(view_label_list) == 4 :
-        row1_h = max(bb_h_list[0], bb_h_list[1])
-        row1_w = bb_w_list[0] + bb_w_list[1]
-        row2_h = max(bb_h_list[2], bb_h_list[3])
-        row2_w = bb_w_list[2] + bb_w_list[3]
-        w = max(row1_w, row2_w)
-        
-        x_pos = 0
-        for (view_label, bb_w, x_pad) in zip(
-            view_label_list[:2], bb_w_list[:2], [0, w - row1_w]
-        ) :
-            x1, y1, x2, y2 = get_bbox_from_mask(view_label.img_foreground_mask)
-            view_label.crop(x1, y1, x2, y2)
-            view_label.pad(0, 0, x_pad, row1_h - (y2 - y1))
-            view_label.translate(x_pos, 0)
-            combined_label.seam_line_dict_list.append(view_label.seam_line_dict)
-            x_pos += bb_w
-        x_pos = 0
-        for (view_label, bb_w, x_pad) in zip(
-            view_label_list[2:], bb_w_list[2:], [0, w - row2_w]
-        ) :
-            x1, y1, x2, y2 = get_bbox_from_mask(view_label.img_foreground_mask)
-            view_label.crop(x1, y1, x2, y2)
-            view_label.pad(0, 0, x_pad, row2_h - (y2 - y1))
-            view_label.translate(x_pos, row1_h)
-            combined_label.seam_line_dict_list.append(view_label.seam_line_dict)
-            x_pos += bb_w
-        combined_label.img = Image.fromarray(np.vstack([
-            np.hstack([
-                np.array(view_label_list[0].img),
-                np.array(view_label_list[1].img),
-            ]),
-            np.hstack([
-                np.array(view_label_list[2].img),
-                np.array(view_label_list[3].img),
-            ]),
-        ]))
-    return combined_label
-        
-def labels_to_token_sequence(
-    combined_label,
-    sewing_pattern,
-) :
-    pass
