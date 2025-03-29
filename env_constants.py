@@ -27,12 +27,12 @@ elif hostname == "miracle" : # A6000 X 4
     
 elif hostname == "gpu-1" : # H100 X 8
     # PROJECT_ROOT    = "/data/hjp/VTO2025/florence-tailor"
-    DATASET_ROOT    = "/data/hjp/VTO2025/DATASETs/690432"
+    # DATASET_ROOT    = "/data/hjp/VTO2025/DATASETs/POC59_old"
+    DATASET_ROOT    = "/data/hjp/VTO2025/DATASETs/GarmentCodeData"
     PYGARMENT_ROOT  = "/data/hjp/VTO2025/GarmentCodeAnalysis"
     
 elif hostname == "hjp-MS-7D42" : # 3090 X 1
     # PROJECT_ROOT    = "/media/hjp/FAAC278CAC27430D/HJP/KUAICV/VTO/florence-tailor"
-    
     DATASET_ROOT    = "/media/hjp/efef19d3-9b92-453c-ba04-c205f7233cab/VTO_DATASET/PoC59"
     PYGARMENT_ROOT  = "/media/hjp/FAAC278CAC27430D/HJP/KUAICV/VTO/REFERENCES/GarmentCodeAnalysis"
 
