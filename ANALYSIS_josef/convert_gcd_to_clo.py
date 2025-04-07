@@ -1028,11 +1028,19 @@ def read_poc_files(
         "projected_vertex_pose_dict",
         "fltrd_vis_seam_line_dict",
         "box_mesh",
-    ]
+    ],
+    gcd_version = 0
 ) :
     garment_id = os.path.basename(garment_path)
 
-    SPEC_FILE_PATH = os.path.join(garment_path, f"{garment_id}_specification.json")
+    if gcd_version == 0 :
+        SPEC_FILE_PATH = os.path.join(garment_path, f"{garment_id}_specification.json")
+    else :
+        SPEC_FILE_PATH = os.path.join(garment_path, f"{garment_id}_specification__{gcd_version:02d}.json")
+
+    if not os.path.exists(SPEC_FILE_PATH) :
+        print(f"Specification file not found: {SPEC_FILE_PATH}")
+
     pattern = pyg.pattern.wrappers.VisPattern(SPEC_FILE_PATH)
 
     if "rendered_image_dict" in return_data_list :
@@ -1085,7 +1093,8 @@ def read_poc_datapoint(
         "projected_vertex_pose_dict",
         "fltrd_vis_seam_line_dict",
         "box_mesh",
-    ]
+    ],
+    gcd_version = 0
 ) :
     (
         rendered_image_dict,
@@ -1100,6 +1109,7 @@ def read_poc_datapoint(
         garment_path,
         # os.path.join(DATASET_ROOT, garment_path),
         return_data_list,
+        gcd_version = gcd_version
     )
     view_label_dict = {}
     for side in view_name_list :
@@ -1194,9 +1204,9 @@ from pathlib import Path
 import pandas as pd
 import json
     
-with open("outfit_path_list.json", "r") as f :
+with open("gcd_01_outfit_path_list.json", "r") as f :
     outfit_path_list = json.load(f)
-with open("top_bottom_path_list.json", "r") as f :
+with open("gcd_01_top_bottom_path_list.json", "r") as f :
     top_bottom_path_list = json.load(f)
 
 print(len(outfit_path_list))
@@ -1239,22 +1249,24 @@ def process_single_garment(
         garment_split, _, garment_id = list(Path(garment_path).parts)[-3:]
 
         OUTPUT_DIR = os.path.join(
-            "SAMPLE_DATA",
-            garment_split,
-            garment_id,
+            "GCD_01",
+            # garment_split,
+            # garment_id,
         )
-
-        OUTPUT_PATH = os.path.join(OUTPUT_DIR, f"{garment_id}__00__clo.json")
-        os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        OUTPUT_PATH = os.path.join(
+            OUTPUT_DIR,
+            f"{garment_split}__{garment_id}__01__clo.json"
+        )
         
         # Copy original gcd file
         shutil.copy(
-            os.path.join(garment_path, f"{garment_id}_specification.json"),
-            os.path.join(OUTPUT_DIR,   f"{garment_id}__00__specification.json")
+            os.path.join(garment_path, f"{garment_id}_specification__01.json"),
+            os.path.join(OUTPUT_DIR, f"{garment_split}__{garment_id}__01__specification.json")
         )
 
         view_label_dict, sewing_pattern, (box_mesh, panel_vertex_mask_dict) = read_poc_datapoint(
-            garment_path, side_list, panel_name_refine_map
+            garment_path, side_list, panel_name_refine_map, gcd_version = 1
         )
 
         # Create a new fabric UUID for each garment
@@ -1575,7 +1587,7 @@ def process_single_garment(
         # ))
         # SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-        os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+        # os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
         with open(OUTPUT_PATH, "w") as fp :
             json.dump(clo_format_dict, fp, indent=4)
             
